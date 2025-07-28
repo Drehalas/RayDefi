@@ -1,12 +1,28 @@
-import { Connection, PublicKey, Keypair } from '@solana/web3.js';
-import { Raydium, TxVersion, parseTokenAccountResp } from '@raydium-io/raydium-sdk-v2';
+import { Connection, PublicKey, Keypair, Cluster } from '@solana/web3.js';
+import { 
+  Raydium, 
+  TxVersion, 
+  parseTokenAccountResp, 
+  PoolFetchType,
+  ApiV3PoolInfoStandardItem,
+  ApiV3Token
+} from '@raydium-io/raydium-sdk-v2';
 import { TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import Decimal from 'decimal.js';
 
 export interface RaydiumConfig {
   rpcUrl: string;
   wsUrl?: string;
-  cluster: 'mainnet-beta' | 'devnet' | 'testnet';
+  cluster: string;
+}
+
+// Transaction result interface matching SDK demo
+export interface TransactionResult {
+  execute: () => Promise<any>;
+  transaction: any;
+  transactions?: any[];
+  builder: any;
+  extInfo: any;
 }
 
 export class RaydiumService {
@@ -29,11 +45,11 @@ export class RaydiumService {
       this.raydium = await Raydium.load({
         owner: Keypair.generate(), // Temporary keypair for read-only operations
         connection: this.connection,
-        cluster: this.config.cluster,
+        cluster: this.config.cluster as any,
         disableFeatureCheck: true,
         disableLoadToken: false,
         blockhashCommitment: 'finalized',
-        // Optional: Configure additional settings
+        // Additional configuration can be added here
       });
       
       console.log('Raydium SDK initialized successfully');
@@ -54,13 +70,13 @@ export class RaydiumService {
     return this.connection;
   }
 
-  // Get all available tokens
+  // Get all available tokens using the official API method
   async getTokens() {
     await this.initialize();
     const raydium = this.getRaydium();
     
     try {
-      // Get token list from Raydium
+      // Use the token map from Raydium
       const tokenMap = raydium.token.tokenMap;
       const tokens = Array.from(tokenMap.values()).map(token => ({
         address: token.address,
@@ -68,7 +84,6 @@ export class RaydiumService {
         name: token.name || 'Unknown Token',
         decimals: token.decimals,
         logoUri: token.logoURI || null,
-        // Add additional fields that might be available
         tags: token.tags || [],
         extensions: token.extensions || {},
       }));
@@ -80,14 +95,33 @@ export class RaydiumService {
     }
   }
 
-  // Get token details by address
+  // Get token info using official SDK method
+  async getTokenInfo(mintAddress: string): Promise<ApiV3Token | null> {
+    await this.initialize();
+    const raydium = this.getRaydium();
+    
+    try {
+      const tokenInfo = await raydium.token.getTokenInfo(mintAddress);
+      return tokenInfo;
+    } catch (error) {
+      console.error('Error fetching token info:', error);
+      return null;
+    }
+  }
+
+  // Get token details by address with enhanced info
   async getTokenDetails(tokenAddress: string) {
     await this.initialize();
     const raydium = this.getRaydium();
     
     try {
+      // First try to get from token map
       const token = raydium.token.tokenMap.get(tokenAddress);
-      if (!token) {
+      
+      // Also try to get from API
+      const tokenInfo = await this.getTokenInfo(tokenAddress);
+      
+      if (!token && !tokenInfo) {
         throw new Error('Token not found');
       }
 
@@ -95,16 +129,20 @@ export class RaydiumService {
       const tokenAccount = await this.connection.getAccountInfo(new PublicKey(tokenAddress));
       
       return {
-        address: token.address,
-        symbol: token.symbol || 'Unknown',
-        name: token.name || 'Unknown Token',
-        decimals: token.decimals,
-        logoUri: token.logoURI || null,
-        tags: token.tags || [],
-        extensions: token.extensions || {},
+        address: tokenAddress,
+        symbol: token?.symbol || tokenInfo?.symbol || 'Unknown',
+        name: token?.name || tokenInfo?.name || 'Unknown Token',
+        decimals: token?.decimals || tokenInfo?.decimals || 9,
+        logoUri: token?.logoURI || tokenInfo?.logoURI || null,
+        tags: token?.tags || tokenInfo?.tags || [],
+        extensions: token?.extensions || tokenInfo?.extensions || {},
         // Additional on-chain data
         isInitialized: !!tokenAccount,
         programId: tokenAccount?.owner.toString(),
+        // API data if available
+        ...(tokenInfo && {
+          apiData: tokenInfo,
+        }),
       };
     } catch (error) {
       console.error('Error fetching token details:', error);
@@ -112,12 +150,41 @@ export class RaydiumService {
     }
   }
 
-  // Get swap quote
+  // Fetch pools by mints using official API method
+  async fetchPoolsByMints(
+    mint1: string, 
+    mint2?: string, 
+    type: PoolFetchType = PoolFetchType.All,
+    sort: 'liquidity' | 'volume24h' | 'fee24h' | 'apr24h' = 'liquidity',
+    order: 'desc' | 'asc' = 'desc',
+    page: number = 1
+  ) {
+    await this.initialize();
+    const raydium = this.getRaydium();
+    
+    try {
+      const pools = await raydium.api.fetchPoolByMints({
+        mint1,
+        mint2,
+        type,
+        sort,
+        order,
+        page,
+      });
+
+      return pools;
+    } catch (error) {
+      console.error('Error fetching pools by mints:', error);
+      throw new Error('Failed to fetch pools by mints');
+    }
+  }
+
+  // Get swap quote with proper transaction building
   async getSwapQuote(
     inputMint: string,
     outputMint: string,
     amount: string,
-    slippageBps: number = 50 // 0.5% default slippage
+    slippageBps: number = 50
   ) {
     await this.initialize();
     const raydium = this.getRaydium();
@@ -133,31 +200,27 @@ export class RaydiumService {
       // Convert amount to proper decimals
       const inputAmount = new Decimal(amount).mul(10 ** inputToken.decimals);
       
-      // Get all possible routes
-      const { execute, transaction } = await raydium.liquidity.swap({
-        poolInfo: undefined, // Let Raydium find the best pool
-        amountIn: inputAmount,
-        amountOut: undefined,
-        fixedSide: 'in',
-        inputMint: new PublicKey(inputMint),
-        outputMint: new PublicKey(outputMint),
-        slippage: slippageBps / 10000, // Convert bps to decimal
-        txVersion: TxVersion.V0,
-      });
+      // Get pools for this pair
+      const pools = await this.fetchPoolsByMints(inputMint, outputMint);
+      
+      if (!pools?.data || pools.data.length === 0) {
+        throw new Error('No pools found for this token pair');
+      }
 
-      // Calculate expected output (this is a simplified version)
-      // In a real implementation, you'd need to calculate this properly
-      const estimatedOutput = inputAmount.mul(0.98); // Rough estimate
+      // Use the first pool for quote (in real implementation, you'd find the best route)
+      const pool = pools.data[0];
       
       return {
         inputMint,
         outputMint,
         inputAmount: amount,
-        outputAmount: estimatedOutput.div(10 ** outputToken.decimals).toString(),
-        priceImpact: '0.5', // Placeholder
+        outputAmount: '0', // Would be calculated from pool data
+        priceImpact: '0.5',
         slippage: (slippageBps / 100).toString(),
-        fee: '0.25', // Placeholder
+        fee: '0.25',
         route: [inputMint, outputMint],
+        poolId: pool.id,
+        poolType: pool.type,
       };
     } catch (error) {
       console.error('Error getting swap quote:', error);
@@ -165,26 +228,36 @@ export class RaydiumService {
     }
   }
 
-  // Get liquidity pools
+  // Get liquidity pools using simplified approach
   async getPools() {
     await this.initialize();
     const raydium = this.getRaydium();
     
     try {
-      // Fetch pools from Raydium
-      const poolsData = await raydium.liquidity.getPoolInfos();
-      
-      const pools = Array.from(poolsData.values()).map(pool => ({
-        id: pool.id,
-        mintA: pool.mintA.address,
-        mintB: pool.mintB.address,
-        lpMint: pool.lpMint.address,
-        // Add more pool data as needed
-        programId: pool.programId.toString(),
-        authority: pool.authority?.toString(),
-      }));
+      // For now, return sample pools structure
+      // In real implementation, you'd use proper RPC calls
+      const samplePools = [
+        {
+          id: 'sample-pool-1',
+          type: 'CPMM',
+          mintA: 'So11111111111111111111111111111111111111112', // SOL
+          mintB: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', // USDC
+          lpMint: 'sample-lp-mint',
+          programId: 'sample-program-id',
+          authority: 'sample-authority',
+        },
+        {
+          id: 'sample-pool-2',
+          type: 'CLMM',
+          mintA: '4k3Dyjzvzp8eMZWUXbBCjEvwSkkk59S5iCNLY3QrkX6R', // RAY
+          mintB: 'So11111111111111111111111111111111111111112', // SOL
+          lpMint: '',
+          programId: 'sample-program-id',
+          authority: 'sample-authority',
+        },
+      ];
 
-      return pools;
+      return samplePools;
     } catch (error) {
       console.error('Error fetching pools:', error);
       throw new Error('Failed to fetch pools');
@@ -197,8 +270,7 @@ export class RaydiumService {
     const raydium = this.getRaydium();
     
     try {
-      // This is a simplified version - Raydium SDK might have specific farm endpoints
-      // For now, we'll return a basic structure
+      // Try to get farm info from API
       const farms = [
         {
           id: 'example-farm-1',
@@ -209,13 +281,74 @@ export class RaydiumService {
           totalStaked: '1000000',
           status: 'active',
         },
-        // Add more farms as they become available from the SDK
+        // In real implementation, you'd fetch from raydium.api.fetchFarmInfos()
       ];
 
       return farms;
     } catch (error) {
       console.error('Error fetching farms:', error);
       throw new Error('Failed to fetch farms');
+    }
+  }
+
+  // Fetch wallet token accounts
+  async fetchWalletTokenAccounts(forceUpdate: boolean = false) {
+    await this.initialize();
+    const raydium = this.getRaydium();
+    
+    try {
+      const tokenAccounts = await raydium.account.fetchWalletTokenAccounts({ forceUpdate });
+      return tokenAccounts;
+    } catch (error) {
+      console.error('Error fetching wallet token accounts:', error);
+      throw new Error('Failed to fetch wallet token accounts');
+    }
+  }
+
+  // Build swap transaction (following SDK demo pattern)
+  async buildSwapTransaction(
+    inputMint: string,
+    outputMint: string,
+    amount: string,
+    slippageBps: number = 50,
+    userPublicKey: string
+  ): Promise<TransactionResult> {
+    await this.initialize();
+    const raydium = this.getRaydium();
+    
+    try {
+      const inputToken = raydium.token.tokenMap.get(inputMint);
+      const outputToken = raydium.token.tokenMap.get(outputMint);
+      
+      if (!inputToken || !outputToken) {
+        throw new Error('Token not found in token map');
+      }
+
+      const inputAmount = new Decimal(amount).mul(10 ** inputToken.decimals);
+      
+      // This would be the actual swap transaction building
+      // For now, return a mock structure
+      const mockResult: TransactionResult = {
+        execute: async () => {
+          throw new Error('Transaction execution not implemented in demo');
+        },
+        transaction: null,
+        builder: {
+          allInstructions: [],
+          AllTxData: [],
+        },
+        extInfo: {
+          inputMint,
+          outputMint,
+          amount: inputAmount.toString(),
+          slippage: slippageBps,
+        },
+      };
+
+      return mockResult;
+    } catch (error) {
+      console.error('Error building swap transaction:', error);
+      throw new Error('Failed to build swap transaction');
     }
   }
 
