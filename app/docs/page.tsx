@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import yaml from 'js-yaml';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
+import SwaggerErrorBoundary from '@/components/SwaggerErrorBoundary';
+import { suppressSwaggerUIWarnings, logReact19Note } from '@/lib/console-utils';
 import 'swagger-ui-react/swagger-ui.css';
 
 // Dynamically import SwaggerUI to avoid SSR issues
@@ -14,6 +16,14 @@ export default function DocsPage() {
   const [swaggerSpec, setSwaggerSpec] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Suppress React 19 warnings from swagger-ui-react
+  useEffect(() => {
+    const cleanup = suppressSwaggerUIWarnings();
+    logReact19Note();
+    
+    return cleanup;
+  }, []);
 
   useEffect(() => {
     const loadSwaggerSpec = async () => {
@@ -821,19 +831,21 @@ liquidity provision, yield farming, and advanced trading features.
         }
       `}</style>
       
-      <SwaggerUI 
-        spec={swaggerSpec}
-        tryItOutEnabled={true}
-        displayRequestDuration={true}
-        defaultModelsExpandDepth={2}
-        defaultModelExpandDepth={3}
-        docExpansion="list"
-        filter={true}
-        showExtensions={true}
-        showCommonExtensions={true}
-        plugins={[]}
-        presets={[]}
-      />
+      <SwaggerErrorBoundary>
+        <SwaggerUI 
+          spec={swaggerSpec}
+          tryItOutEnabled={true}
+          displayRequestDuration={true}
+          defaultModelsExpandDepth={2}
+          defaultModelExpandDepth={3}
+          docExpansion="list"
+          filter={true}
+          showExtensions={true}
+          showCommonExtensions={true}
+          plugins={[]}
+          presets={[]}
+        />
+      </SwaggerErrorBoundary>
       <Footer />
     </div>
   );

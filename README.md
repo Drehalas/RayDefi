@@ -195,6 +195,19 @@ RayDefi/
 - **Wallet Security**: Always verify transactions before signing
 - **API Keys**: Secure your RPC endpoints in production
 
+## ⚠️ Known Issues
+
+### React 19 Compatibility
+- **Issue**: Console warnings about `UNSAFE_componentWillReceiveProps` from Swagger UI components
+- **Status**: Library compatibility issue - `swagger-ui-react` doesn't support React 19 yet  
+- **Impact**: No functional impact, warnings are automatically suppressed in development
+- **Solution**: Warnings will be resolved when `swagger-ui-react` releases React 19 support
+- **Workaround**: Error boundaries and warning suppression implemented to maintain clean console output
+
+### Installation Notes
+- Use `npm install --legacy-peer-deps` if you encounter peer dependency conflicts
+- The `swagger-ui-react` library currently supports React 16-18, but works functionally with React 19
+
 ## 🤝 Contributing
 
 1. Fork the repository
