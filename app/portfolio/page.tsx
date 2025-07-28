@@ -2,6 +2,8 @@
 
 import { useWallet } from '@solana/wallet-adapter-react';
 import { WalletButton } from '../../components/WalletProvider';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { useState, useEffect } from 'react';
 
 interface PoolAsset {
@@ -146,8 +148,9 @@ export default function PortfolioPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-950 pt-20">
-      <div className="container mx-auto px-4 py-8">
+    <div className="min-h-screen bg-gray-950">
+      <Header />
+      <div className="container mx-auto px-4 py-8 pt-20">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">My Portfolio</h1>
@@ -342,6 +345,7 @@ export default function PortfolioPage() {
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 } 

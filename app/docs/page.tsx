@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import yaml from 'js-yaml';
+import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import 'swagger-ui-react/swagger-ui.css';
 
 // Dynamically import SwaggerUI to avoid SSR issues
@@ -689,6 +691,7 @@ liquidity provision, yield farming, and advanced trading features.
 
   return (
     <div className="swagger-ui-container">
+      <Header />
       <style jsx global>{`
         .swagger-ui-container {
           min-height: 100vh;
@@ -831,6 +834,7 @@ liquidity provision, yield farming, and advanced trading features.
         plugins={[]}
         presets={[]}
       />
+      <Footer />
     </div>
   );
 }

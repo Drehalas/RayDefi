@@ -2,6 +2,7 @@
 'use client';
 
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import { useState } from 'react';
 
 interface Farm {
@@ -273,6 +274,7 @@ export default function FarmsPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

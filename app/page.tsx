@@ -2,6 +2,7 @@
 'use client';
 
 import Header from '@/components/Header';
+import Footer from '@/components/Footer';
 import SwapInterface from '@/components/SwapInterface';
 import TradingStats from '@/components/TradingStats';
 import TopPairs from '@/components/TopPairs';
@@ -132,6 +133,7 @@ export default function Home() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }
