@@ -1,0 +1,913 @@
+openapi: 3.0.3
+info:
+  title: RayDefi API
+  description: |
+    RayDefi is a decentralized finance (DeFi) platform providing token swapping, 
+    liquidity provision, yield farming, and advanced trading features.
+    
+    ## Features
+    - Token Swapping with minimal slippage
+    - Liquidity Pool Management
+    - Yield Farming opportunities
+    - Real-time Trading Statistics
+    - Pump functionality for new tokens
+  version: 1.0.0
+  contact:
+    name: RayDefi Team
+    url: https://github.com/Drehalas/RayDefi
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: https://api.raydefi.com/v1
+    description: Production server
+  - url: https://staging-api.raydefi.com/v1
+    description: Staging server
+  - url: http://localhost:3000/api/v1
+    description: Development server
+
+paths:
+  /tokens:
+    get:
+      summary: Get supported tokens
+      description: Retrieve a list of all supported tokens on the platform
+      tags:
+        - Tokens
+      parameters:
+        - name: limit
+          in: query
+          description: Number of tokens to return
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+        - name: offset
+          in: query
+          description: Number of tokens to skip
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: List of supported tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Token'
+                  total:
+                    type: integer
+                  limit:
+                    type: integer
+                  offset:
+                    type: integer
+
+  /tokens/{tokenAddress}:
+    get:
+      summary: Get token details
+      description: Get detailed information about a specific token
+      tags:
+        - Tokens
+      parameters:
+        - name: tokenAddress
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Token details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenDetails'
+        '404':
+          description: Token not found
+
+  /swap/quote:
+    post:
+      summary: Get swap quote
+      description: Get a quote for swapping tokens including price impact and slippage
+      tags:
+        - Swap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapQuoteRequest'
+      responses:
+        '200':
+          description: Swap quote
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapQuote'
+        '400':
+          description: Invalid request parameters
+
+  /swap/execute:
+    post:
+      summary: Execute token swap
+      description: Execute a token swap transaction
+      tags:
+        - Swap
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SwapExecuteRequest'
+      responses:
+        '200':
+          description: Swap executed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SwapResult'
+        '400':
+          description: Invalid request or insufficient funds
+        '500':
+          description: Transaction failed
+
+  /pools:
+    get:
+      summary: Get liquidity pools
+      description: Retrieve all available liquidity pools
+      tags:
+        - Pools
+      parameters:
+        - name: sortBy
+          in: query
+          description: Sort pools by specific criteria
+          schema:
+            type: string
+            enum: [tvl, volume24h, apy, created]
+            default: tvl
+        - name: order
+          in: query
+          description: Sort order
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+      responses:
+        '200':
+          description: List of liquidity pools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pools:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Pool'
+
+  /pools/{poolId}:
+    get:
+      summary: Get pool details
+      description: Get detailed information about a specific liquidity pool
+      tags:
+        - Pools
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          description: Pool identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Pool details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PoolDetails'
+
+  /pools/{poolId}/add-liquidity:
+    post:
+      summary: Add liquidity to pool
+      description: Add liquidity to a specific pool
+      tags:
+        - Pools
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          description: Pool identifier
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddLiquidityRequest'
+      responses:
+        '200':
+          description: Liquidity added successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiquidityResult'
+
+  /pools/{poolId}/remove-liquidity:
+    post:
+      summary: Remove liquidity from pool
+      description: Remove liquidity from a specific pool
+      tags:
+        - Pools
+      parameters:
+        - name: poolId
+          in: path
+          required: true
+          description: Pool identifier
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RemoveLiquidityRequest'
+      responses:
+        '200':
+          description: Liquidity removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LiquidityResult'
+
+  /farms:
+    get:
+      summary: Get yield farms
+      description: Retrieve all available yield farming opportunities
+      tags:
+        - Farms
+      parameters:
+        - name: status
+          in: query
+          description: Filter farms by status
+          schema:
+            type: string
+            enum: [active, inactive, ended]
+        - name: sortBy
+          in: query
+          description: Sort farms by specific criteria
+          schema:
+            type: string
+            enum: [apy, tvl, rewards, created]
+            default: apy
+      responses:
+        '200':
+          description: List of yield farms
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  farms:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Farm'
+
+  /farms/{farmId}/stake:
+    post:
+      summary: Stake tokens in farm
+      description: Stake LP tokens in a yield farm
+      tags:
+        - Farms
+      parameters:
+        - name: farmId
+          in: path
+          required: true
+          description: Farm identifier
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StakeRequest'
+      responses:
+        '200':
+          description: Tokens staked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StakeResult'
+
+  /farms/{farmId}/unstake:
+    post:
+      summary: Unstake tokens from farm
+      description: Unstake LP tokens from a yield farm
+      tags:
+        - Farms
+      parameters:
+        - name: farmId
+          in: path
+          required: true
+          description: Farm identifier
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UnstakeRequest'
+      responses:
+        '200':
+          description: Tokens unstaked successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StakeResult'
+
+  /farms/{farmId}/harvest:
+    post:
+      summary: Harvest farm rewards
+      description: Claim accumulated rewards from a yield farm
+      tags:
+        - Farms
+      parameters:
+        - name: farmId
+          in: path
+          required: true
+          description: Farm identifier
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/HarvestRequest'
+      responses:
+        '200':
+          description: Rewards harvested successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HarvestResult'
+
+  /pump/tokens:
+    get:
+      summary: Get pump tokens
+      description: Retrieve tokens available for pump functionality
+      tags:
+        - Pump
+      responses:
+        '200':
+          description: List of pump tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PumpToken'
+
+  /pump/{tokenAddress}/buy:
+    post:
+      summary: Buy pump token
+      description: Purchase tokens through the pump mechanism
+      tags:
+        - Pump
+      parameters:
+        - name: tokenAddress
+          in: path
+          required: true
+          description: Token contract address
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PumpBuyRequest'
+      responses:
+        '200':
+          description: Purchase successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PumpResult'
+
+  /statistics/trading:
+    get:
+      summary: Get trading statistics
+      description: Retrieve platform trading statistics
+      tags:
+        - Statistics
+      parameters:
+        - name: timeframe
+          in: query
+          description: Time period for statistics
+          schema:
+            type: string
+            enum: [24h, 7d, 30d, 90d, 1y]
+            default: 24h
+      responses:
+        '200':
+          description: Trading statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TradingStats'
+
+  /statistics/pairs/top:
+    get:
+      summary: Get top trading pairs
+      description: Retrieve the most active trading pairs
+      tags:
+        - Statistics
+      parameters:
+        - name: limit
+          in: query
+          description: Number of pairs to return
+          schema:
+            type: integer
+            default: 10
+            maximum: 50
+        - name: timeframe
+          in: query
+          description: Time period for ranking
+          schema:
+            type: string
+            enum: [24h, 7d, 30d]
+            default: 24h
+      responses:
+        '200':
+          description: Top trading pairs
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  pairs:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TradingPair'
+
+  /user/{userAddress}/portfolio:
+    get:
+      summary: Get user portfolio
+      description: Retrieve user's portfolio including balances and positions
+      tags:
+        - User
+      parameters:
+        - name: userAddress
+          in: path
+          required: true
+          description: User wallet address
+          schema:
+            type: string
+      responses:
+        '200':
+          description: User portfolio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPortfolio'
+
+components:
+  schemas:
+    Token:
+      type: object
+      properties:
+        address:
+          type: string
+          description: Token contract address
+        symbol:
+          type: string
+          description: Token symbol
+        name:
+          type: string
+          description: Token name
+        decimals:
+          type: integer
+          description: Token decimals
+        logoUri:
+          type: string
+          format: uri
+          description: Token logo URL
+        price:
+          type: string
+          description: Current token price in USD
+        change24h:
+          type: string
+          description: 24h price change percentage
+
+    TokenDetails:
+      allOf:
+        - $ref: '#/components/schemas/Token'
+        - type: object
+          properties:
+            totalSupply:
+              type: string
+              description: Total token supply
+            marketCap:
+              type: string
+              description: Market capitalization
+            volume24h:
+              type: string
+              description: 24h trading volume
+            holders:
+              type: integer
+              description: Number of token holders
+
+    SwapQuoteRequest:
+      type: object
+      required:
+        - tokenIn
+        - tokenOut
+        - amountIn
+      properties:
+        tokenIn:
+          type: string
+          description: Input token address
+        tokenOut:
+          type: string
+          description: Output token address
+        amountIn:
+          type: string
+          description: Input amount
+        slippageTolerance:
+          type: string
+          description: Maximum slippage tolerance (e.g., "0.5" for 0.5%)
+          default: "0.5"
+
+    SwapQuote:
+      type: object
+      properties:
+        amountOut:
+          type: string
+          description: Expected output amount
+        priceImpact:
+          type: string
+          description: Price impact percentage
+        minimumAmountOut:
+          type: string
+          description: Minimum amount out considering slippage
+        route:
+          type: array
+          items:
+            type: string
+          description: Token addresses in the swap route
+        gasEstimate:
+          type: string
+          description: Estimated gas cost
+
+    SwapExecuteRequest:
+      type: object
+      required:
+        - tokenIn
+        - tokenOut
+        - amountIn
+        - minimumAmountOut
+        - userAddress
+      properties:
+        tokenIn:
+          type: string
+        tokenOut:
+          type: string
+        amountIn:
+          type: string
+        minimumAmountOut:
+          type: string
+        userAddress:
+          type: string
+        deadline:
+          type: integer
+          description: Transaction deadline timestamp
+
+    SwapResult:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+        amountIn:
+          type: string
+        amountOut:
+          type: string
+        gasUsed:
+          type: string
+
+    Pool:
+      type: object
+      properties:
+        id:
+          type: string
+        token0:
+          $ref: '#/components/schemas/Token'
+        token1:
+          $ref: '#/components/schemas/Token'
+        reserve0:
+          type: string
+        reserve1:
+          type: string
+        totalLiquidity:
+          type: string
+        volume24h:
+          type: string
+        apy:
+          type: string
+        fee:
+          type: string
+
+    PoolDetails:
+      allOf:
+        - $ref: '#/components/schemas/Pool'
+        - type: object
+          properties:
+            volumeHistory:
+              type: array
+              items:
+                type: object
+                properties:
+                  timestamp:
+                    type: integer
+                  volume:
+                    type: string
+            liquidityHistory:
+              type: array
+              items:
+                type: object
+                properties:
+                  timestamp:
+                    type: integer
+                  liquidity:
+                    type: string
+
+    AddLiquidityRequest:
+      type: object
+      required:
+        - amount0
+        - amount1
+        - userAddress
+      properties:
+        amount0:
+          type: string
+        amount1:
+          type: string
+        amount0Min:
+          type: string
+        amount1Min:
+          type: string
+        userAddress:
+          type: string
+        deadline:
+          type: integer
+
+    RemoveLiquidityRequest:
+      type: object
+      required:
+        - liquidity
+        - userAddress
+      properties:
+        liquidity:
+          type: string
+        amount0Min:
+          type: string
+        amount1Min:
+          type: string
+        userAddress:
+          type: string
+        deadline:
+          type: integer
+
+    LiquidityResult:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+        liquidity:
+          type: string
+        amount0:
+          type: string
+        amount1:
+          type: string
+
+    Farm:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        stakingToken:
+          $ref: '#/components/schemas/Token'
+        rewardToken:
+          $ref: '#/components/schemas/Token'
+        apy:
+          type: string
+        totalStaked:
+          type: string
+        rewardRate:
+          type: string
+        startTime:
+          type: integer
+        endTime:
+          type: integer
+        status:
+          type: string
+          enum: [active, inactive, ended]
+
+    StakeRequest:
+      type: object
+      required:
+        - amount
+        - userAddress
+      properties:
+        amount:
+          type: string
+        userAddress:
+          type: string
+
+    UnstakeRequest:
+      type: object
+      required:
+        - amount
+        - userAddress
+      properties:
+        amount:
+          type: string
+        userAddress:
+          type: string
+
+    StakeResult:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+        amount:
+          type: string
+        newStakedBalance:
+          type: string
+
+    HarvestRequest:
+      type: object
+      required:
+        - userAddress
+      properties:
+        userAddress:
+          type: string
+
+    HarvestResult:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+        rewardAmount:
+          type: string
+
+    PumpToken:
+      type: object
+      properties:
+        address:
+          type: string
+        symbol:
+          type: string
+        name:
+          type: string
+        currentPrice:
+          type: string
+        targetPrice:
+          type: string
+        progress:
+          type: string
+        timeRemaining:
+          type: integer
+
+    PumpBuyRequest:
+      type: object
+      required:
+        - amount
+        - userAddress
+      properties:
+        amount:
+          type: string
+        userAddress:
+          type: string
+        maxPrice:
+          type: string
+
+    PumpResult:
+      type: object
+      properties:
+        transactionHash:
+          type: string
+        tokenAmount:
+          type: string
+        pricePerToken:
+          type: string
+
+    TradingStats:
+      type: object
+      properties:
+        totalVolume:
+          type: string
+        totalTransactions:
+          type: integer
+        totalUsers:
+          type: integer
+        totalValueLocked:
+          type: string
+        topToken:
+          $ref: '#/components/schemas/Token'
+
+    TradingPair:
+      type: object
+      properties:
+        token0:
+          $ref: '#/components/schemas/Token'
+        token1:
+          $ref: '#/components/schemas/Token'
+        volume24h:
+          type: string
+        transactions24h:
+          type: integer
+        priceChange24h:
+          type: string
+
+    UserPortfolio:
+      type: object
+      properties:
+        address:
+          type: string
+        totalValue:
+          type: string
+        tokens:
+          type: array
+          items:
+            type: object
+            properties:
+              token:
+                $ref: '#/components/schemas/Token'
+              balance:
+                type: string
+              value:
+                type: string
+        liquidityPositions:
+          type: array
+          items:
+            type: object
+            properties:
+              pool:
+                $ref: '#/components/schemas/Pool'
+              liquidity:
+                type: string
+              value:
+                type: string
+        farmPositions:
+          type: array
+          items:
+            type: object
+            properties:
+              farm:
+                $ref: '#/components/schemas/Farm'
+              stakedAmount:
+                type: string
+              pendingRewards:
+                type: string
+
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+
+security:
+  - ApiKeyAuth: []
+  - BearerAuth: []
+
+tags:
+  - name: Tokens
+    description: Token information and management
+  - name: Swap
+    description: Token swapping functionality
+  - name: Pools
+    description: Liquidity pool operations
+  - name: Farms
+    description: Yield farming operations
+  - name: Pump
+    description: Token pump functionality
+  - name: Statistics
+    description: Platform and trading statistics
+  - name: User
+    description: User-specific data and operations 
