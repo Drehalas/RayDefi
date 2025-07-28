@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Metadata } from 'next';
 
 export default function DocsPage() {
   const [activeTab, setActiveTab] = useState<'swagger' | 'readme'>('swagger');
@@ -223,9 +222,4 @@ export default function DocsPage() {
   );
 }
 
-// This would normally be exported at the top level, but since we're using 'use client', 
-// we'll need to handle metadata differently
-export const metadata = {
-  title: 'API Documentation - RayDefi',
-  description: 'Complete API documentation for the RayDefi DeFi platform',
-}; 
+// Metadata is now handled in layout.tsx since this is a client component 
