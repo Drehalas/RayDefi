@@ -30,6 +30,9 @@ export default function Header() {
             <Link href="/farms" className="text-gray-300 hover:text-purple-400 transition-colors whitespace-nowrap cursor-pointer">
               Farms
             </Link>
+            <Link href="/portfolio" className="text-gray-300 hover:text-purple-400 transition-colors whitespace-nowrap cursor-pointer">
+              Portfolio
+            </Link>
             <Link href="/pump" className="text-gray-300 hover:text-purple-400 transition-colors whitespace-nowrap cursor-pointer">
               Pump.fun
             </Link>
