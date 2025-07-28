@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { PoolFetchType } from '@raydium-io/raydium-sdk-v2';
 import { getRaydiumService, createApiResponse, handleApiError } from '../../../../../lib/raydium';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

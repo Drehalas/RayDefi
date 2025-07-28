@@ -2,14 +2,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { WalletButton } from './WalletProvider';
 
 export default function Header() {
-  const [isConnected, setIsConnected] = useState(false);
-
-  const connectWallet = () => {
-    setIsConnected(true);
-  };
 
   return (
     <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
@@ -44,16 +39,7 @@ export default function Header() {
             <button className="w-8 h-8 flex items-center justify-center text-gray-300 hover:text-white transition-colors cursor-pointer">
               <i className="ri-settings-3-line"></i>
             </button>
-            <button 
-              onClick={connectWallet}
-              className={`px-6 py-2 rounded-full font-semibold transition-all whitespace-nowrap cursor-pointer ${
-                isConnected 
-                  ? 'bg-green-500 text-white' 
-                  : 'bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600'
-              }`}
-            >
-              {isConnected ? 'Connected' : 'Connect Wallet'}
-            </button>
+            <WalletButton />
           </div>
         </div>
       </div>

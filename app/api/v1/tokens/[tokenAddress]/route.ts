@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRaydiumService, createApiResponse, handleApiError } from '../../../../../lib/raydium';
 
+export const dynamic = 'force-dynamic';
+
 interface RouteParams {
   params: {
     tokenAddress: string;
