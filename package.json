@@ -8,7 +8,12 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@raydium-io/raydium-sdk-v2": "^0.2.6-alpha",
     "@react-google-maps/api": "^2.19.3",
+    "@solana/spl-token": "^0.4.13",
+    "@solana/web3.js": "^1.98.2",
+    "bs58": "^6.0.0",
+    "decimal.js": "^10.6.0",
     "js-yaml": "^4.1.0",
     "next": "15.3.2",
     "react": "^19.0.0",
